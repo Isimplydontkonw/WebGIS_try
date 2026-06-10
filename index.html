@@ -51,9 +51,30 @@
         }
 
         .map-panel h1 {
-            margin: 0 0 12px;
+            margin: 0;
             font-size: 16px;
             line-height: 1.4;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .panel-toggle {
+            display: none;
+            flex: 0 0 auto;
+            padding: 5px 9px;
+            color: #5b21b6;
+            font: inherit;
+            font-size: 12px;
+            cursor: pointer;
+            background: #f5f3ff;
+            border: 1px solid #c4b5fd;
+            border-radius: 5px;
         }
 
         .layer-option,
@@ -298,13 +319,35 @@
                 top: 8px;
                 left: 8px;
                 width: min(260px, calc(100vw - 16px));
-                max-height: 48vh;
+                max-height: calc(100vh - 16px);
                 padding: 10px;
+                overflow: hidden;
+            }
+
+            .panel-header {
+                margin-bottom: 0;
             }
 
             .map-panel h1 {
-                margin-bottom: 8px;
                 font-size: 14px;
+            }
+
+            .panel-toggle {
+                display: block;
+            }
+
+            .panel-content {
+                max-height: 0;
+                overflow: hidden;
+                opacity: 0;
+                transition: max-height 0.25s ease, opacity 0.2s ease, margin-top 0.25s ease;
+            }
+
+            .map-panel.expanded .panel-content {
+                max-height: calc(100vh - 80px);
+                margin-top: 10px;
+                overflow-y: auto;
+                opacity: 1;
             }
 
             .status {
@@ -317,8 +360,17 @@
     <main id="map" aria-label="企业与开发区分布地图"></main>
 
     <aside class="map-panel" aria-label="图层控制和图例">
-        <h1>企业与开发区分布</h1>
+        <div class="panel-header">
+            <h1>企业与开发区分布</h1>
+            <button
+                id="panel-toggle"
+                class="panel-toggle"
+                type="button"
+                aria-expanded="false"
+                aria-controls="panel-content">展开</button>
+        </div>
 
+        <div id="panel-content" class="panel-content">
         <div class="summary-grid" aria-label="数据统计">
             <div class="summary-card">
                 <strong id="polygon-count" class="summary-value">--</strong>
@@ -370,6 +422,7 @@
             企业点位 / 聚合数量
         </div>
         <button id="reset-view" class="panel-button" type="button">显示全部数据</button>
+        </div>
     </aside>
 
     <div id="status" class="status" role="status">正在加载地图数据...</div>
@@ -385,6 +438,8 @@
         const popupElement = document.getElementById("popup");
         const popupTitle = document.getElementById("popup-title");
         const popupContent = document.getElementById("popup-content");
+        const mapPanel = document.querySelector(".map-panel");
+        const panelToggle = document.getElementById("panel-toggle");
         let popupDragState = null;
 
         const gaodeImageLayer = new ol.layer.Tile({
@@ -873,6 +928,11 @@
         });
         document.getElementById("development-zone-search").addEventListener("input", (event) => {
             renderDevelopmentZoneResults(event.target.value);
+        });
+        panelToggle.addEventListener("click", () => {
+            const expanded = mapPanel.classList.toggle("expanded");
+            panelToggle.textContent = expanded ? "收起" : "展开";
+            panelToggle.setAttribute("aria-expanded", String(expanded));
         });
 
         Promise.all([
