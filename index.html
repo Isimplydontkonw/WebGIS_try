@@ -1,189 +1,893 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WebGIS 企业与开发区分布</title>
 
-<link
-rel="stylesheet"
-href="https://cdn.jsdelivr.net/npm/ol@v7.3.0/ol.css">
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/ol@v7.3.0/ol.css">
+    <script src="https://cdn.jsdelivr.net/npm/ol@v7.3.0/dist/ol.js"></script>
+    <script src="https://unpkg.com/gcoord/dist/gcoord.global.prod.js"></script>
 
-<script
-    src="https://cdn.jsdelivr.net/npm/ol@v7.3.0/dist/ol.js">
-</script>
+    <style>
+        :root {
+            color-scheme: light;
+            font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+        }
 
-<script 
-    src="https://unpkg.com/gcoord/dist/gcoord.global.prod.js">
-</script>
+        * {
+            box-sizing: border-box;
+        }
 
-<style>
-    html,body,#map{
-        height:100vh;
-        margin:0;
-    }
+        html,
+        body,
+        #map {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+        }
 
-    /* 弹窗样式 */
-    .popup {
-        position: absolute;
-        background: white;
-        padding: 10px;
-        border: 1px solid #999;
-        border-radius: 4px;
-        min-width: 220px;
-        max-width: 360px;
-        font-size: 13px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        display: none;
-        z-index: 999;
-    }
+        body {
+            overflow: hidden;
+        }
 
-    .popup table {
-        border-collapse: collapse;
-        width: 100%;
-    }
+        .map-panel {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            z-index: 10;
+            width: 280px;
+            max-height: calc(100vh - 24px);
+            padding: 14px;
+            overflow: auto;
+            color: #1f2937;
+            background: rgba(255, 255, 255, 0.94);
+            border: 1px solid rgba(148, 163, 184, 0.5);
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(15, 23, 42, 0.18);
+            backdrop-filter: blur(6px);
+        }
 
-    .popup td {
-        border: 1px solid #ddd;
-        padding: 4px 6px;
-    }
-</style>
+        .map-panel h1 {
+            margin: 0 0 12px;
+            font-size: 16px;
+            line-height: 1.4;
+        }
 
+        .layer-option,
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            font-size: 13px;
+        }
+
+        .layer-option {
+            cursor: pointer;
+        }
+
+        .legend-symbol {
+            flex: 0 0 auto;
+            width: 14px;
+            height: 14px;
+        }
+
+        .legend-symbol.polygon {
+            background: rgba(168, 85, 247, 0.24);
+            border: 2px solid #7c3aed;
+        }
+
+        .legend-symbol.point {
+            border: 2px solid white;
+            border-radius: 50%;
+            background: #dc2626;
+            box-shadow: 0 0 0 1px #991b1b;
+        }
+
+        .panel-divider {
+            height: 1px;
+            margin: 12px 0 4px;
+            background: #e2e8f0;
+        }
+
+        .panel-section-title {
+            margin: 12px 0 6px;
+            color: #475569;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 8px 10px;
+            font: inherit;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.14);
+        }
+
+        .search-results {
+            max-height: 210px;
+            margin: 6px 0 0;
+            padding: 0;
+            overflow: auto;
+            list-style: none;
+        }
+
+        .search-result-button {
+            width: 100%;
+            padding: 7px 8px;
+            color: #334155;
+            font: inherit;
+            font-size: 12px;
+            text-align: left;
+            cursor: pointer;
+            background: transparent;
+            border: 0;
+            border-bottom: 1px solid #eef2f7;
+        }
+
+        .search-result-button:hover,
+        .search-result-button:focus {
+            color: #5b21b6;
+            background: #f5f3ff;
+        }
+
+        .search-empty {
+            padding: 8px 2px;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .summary-card {
+            padding: 9px;
+            text-align: center;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+        }
+
+        .summary-value {
+            display: block;
+            color: #5b21b6;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .summary-label {
+            color: #64748b;
+            font-size: 11px;
+        }
+
+        .panel-button {
+            width: 100%;
+            margin-top: 10px;
+            padding: 8px 10px;
+            color: white;
+            font: inherit;
+            font-size: 13px;
+            cursor: pointer;
+            background: #6d28d9;
+            border: 0;
+            border-radius: 6px;
+        }
+
+        .panel-button:hover {
+            background: #5b21b6;
+        }
+
+        .status {
+            position: absolute;
+            left: 50%;
+            bottom: 18px;
+            z-index: 10;
+            max-width: calc(100% - 32px);
+            padding: 8px 14px;
+            color: #334155;
+            font-size: 13px;
+            background: rgba(255, 255, 255, 0.94);
+            border-radius: 18px;
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.18);
+            transform: translateX(-50%);
+            transition: opacity 0.2s;
+        }
+
+        .status.error {
+            color: #991b1b;
+            background: #fef2f2;
+        }
+
+        .status.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .popup {
+            position: relative;
+            width: min(360px, calc(100vw - 32px));
+            max-height: min(440px, calc(100vh - 64px));
+            padding: 14px;
+            overflow: auto;
+            color: #1f2937;
+            font-size: 13px;
+            background: white;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            box-shadow: 0 5px 20px rgba(15, 23, 42, 0.28);
+        }
+
+        .popup::after {
+            position: absolute;
+            bottom: -9px;
+            left: 20px;
+            width: 16px;
+            height: 16px;
+            content: "";
+            background: white;
+            border-right: 1px solid #cbd5e1;
+            border-bottom: 1px solid #cbd5e1;
+            transform: rotate(45deg);
+        }
+
+        .popup-title {
+            margin: 0 26px 10px 0;
+            font-size: 15px;
+            cursor: move;
+            user-select: none;
+            touch-action: none;
+        }
+
+        .popup.dragging {
+            cursor: grabbing;
+        }
+
+        .popup-close {
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            color: #64748b;
+            font-size: 22px;
+            line-height: 26px;
+            cursor: pointer;
+            background: transparent;
+            border: 0;
+        }
+
+        .popup table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .popup th,
+        .popup td {
+            padding: 6px 7px;
+            overflow-wrap: anywhere;
+            text-align: left;
+            vertical-align: top;
+            border: 1px solid #e2e8f0;
+        }
+
+        .popup th {
+            width: 34%;
+            color: #475569;
+            font-weight: 600;
+            background: #f8fafc;
+        }
+
+        @media (max-width: 600px) {
+            .map-panel {
+                top: 8px;
+                left: 8px;
+                width: min(260px, calc(100vw - 16px));
+                max-height: 48vh;
+                padding: 10px;
+            }
+
+            .map-panel h1 {
+                margin-bottom: 8px;
+                font-size: 14px;
+            }
+
+            .status {
+                bottom: 12px;
+            }
+        }
+    </style>
 </head>
 <body>
+    <main id="map" aria-label="企业与开发区分布地图"></main>
 
-<div id="map"></div>
-<div id="popup" class="popup"></div>
-<script>
+    <aside class="map-panel" aria-label="图层控制和图例">
+        <h1>企业与开发区分布</h1>
 
-    // 高德影像底图
-    const gaodeImageLayer = new ol.layer.Tile({
-        source: new ol.source.XYZ({
-            url: 'https://webst0{1-4}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}'
-        })
-    });
+        <div class="summary-grid" aria-label="数据统计">
+            <div class="summary-card">
+                <strong id="polygon-count" class="summary-value">--</strong>
+                <span class="summary-label">开发区</span>
+            </div>
+            <div class="summary-card">
+                <strong id="point-count" class="summary-value">--</strong>
+                <span class="summary-label">企业</span>
+            </div>
+        </div>
 
-    // 高德影像标注底图
-    const gaodeImageLabelLayer = new ol.layer.Tile({
-        source: new ol.source.XYZ({
-            url: 'https://webst0{1-4}.is.autonavi.com/appmaptile?style=8&x={x}&y={y}&z={z}'
-        })
-    });
+        <div class="panel-section-title">企业搜索</div>
+        <input
+            id="company-search"
+            class="search-input"
+            type="search"
+            placeholder="输入企业名称"
+            autocomplete="off">
+        <ul id="search-results" class="search-results" aria-label="企业搜索结果"></ul>
 
-    // 面图层
-    const polygonLayer = new ol.layer.Vector({
-        source:new ol.source.Vector(),
+        <div class="panel-section-title">开发区搜索</div>
+        <input
+            id="development-zone-search"
+            class="search-input"
+            type="search"
+            placeholder="输入开发区或区块名称"
+            autocomplete="off">
+        <ul
+            id="development-zone-results"
+            class="search-results"
+            aria-label="开发区搜索结果"></ul>
 
-        style:new ol.style.Style({
-            stroke:new ol.style.Stroke({
-                color:'blue',width:2
-            }),
-            fill:new ol.style.Fill({
-                color:'rgba(0,0,255,0.15)'
+        <div class="panel-section-title">图层控制</div>
+        <label class="layer-option">
+            <input id="polygon-toggle" type="checkbox" checked>
+            显示开发区范围
+        </label>
+        <label class="layer-option">
+            <input id="point-toggle" type="checkbox" checked>
+            显示企业点位
+        </label>
+        <div class="panel-divider"></div>
+        <div class="legend-item">
+            <span class="legend-symbol polygon"></span>
+            开发区范围
+        </div>
+        <div class="legend-item">
+            <span class="legend-symbol point"></span>
+            企业点位 / 聚合数量
+        </div>
+        <button id="reset-view" class="panel-button" type="button">显示全部数据</button>
+    </aside>
+
+    <div id="status" class="status" role="status">正在加载地图数据...</div>
+
+    <div id="popup" class="popup" hidden>
+        <button id="popup-close" class="popup-close" type="button" aria-label="关闭弹窗">&times;</button>
+        <h2 id="popup-title" class="popup-title">属性信息</h2>
+        <div id="popup-content"></div>
+    </div>
+
+    <script>
+        const statusElement = document.getElementById("status");
+        const popupElement = document.getElementById("popup");
+        const popupTitle = document.getElementById("popup-title");
+        const popupContent = document.getElementById("popup-content");
+        let popupDragState = null;
+
+        const gaodeImageLayer = new ol.layer.Tile({
+            source: new ol.source.XYZ({
+                url: "https://webst0{1-4}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}"
             })
-        })
-    });
+        });
 
-    // 点图层
-    const pointLayer = new ol.layer.Vector({
-        source:new ol.source.Vector(),
-    
-        style:new ol.style.Style({
-            image:new ol.style.Circle({
-                radius:5,
-                fill:new ol.style.Fill({
-                    color:'red'
+        const gaodeImageLabelLayer = new ol.layer.Tile({
+            source: new ol.source.XYZ({
+                url: "https://webst0{1-4}.is.autonavi.com/appmaptile?style=8&x={x}&y={y}&z={z}"
+            })
+        });
+
+        const polygonSource = new ol.source.Vector();
+        const polygonLayer = new ol.layer.Vector({
+            source: polygonSource,
+            style: new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                    color: "#7c3aed",
+                    width: 2.5
+                }),
+                fill: new ol.style.Fill({
+                    color: "rgba(168, 85, 247, 0.24)"
                 })
             })
-        })
-    });
+        });
 
+        const pointSource = new ol.source.Vector();
+        const clusterSource = new ol.source.Cluster({
+            distance: 36,
+            minDistance: 12,
+            source: pointSource
+        });
+        const clusterStyleCache = {};
 
-    // 创建地图
-    const map =new ol.Map({
-        target:'map',
-        layers:[gaodeImageLayer, gaodeImageLabelLayer, polygonLayer, pointLayer],
-        view:new ol.View({
-            center:ol.proj.fromLonLat([120.15,30.28]),
-            zoom:10
-        })
-    });
-
-    // 加载面
-    fetch('./data/Range.geojson').then(
-        res=>res.json()
-    ).then(data=>{
-        const converted=gcoord.transform(
-            data,
-            gcoord.WGS84,
-            gcoord.GCJ02
-        )
-
-        const features=new ol.format.GeoJSON().readFeatures(
-            converted,{
-            dataProjection:'EPSG:4326',
-            featureProjection:'EPSG:3857'
-        })
-
-        polygonLayer.getSource().addFeatures(features)
-    })
-
-    //  加载点
-    fetch('./data/company.geojson').then(
-        res=>res.json()
-    ).then(data=>{
-        const converted=gcoord.transform(
-            data,
-            gcoord.WGS84,
-            gcoord.GCJ02
-        )
-
-        const features=new ol.format.GeoJSON().readFeatures(
-            converted,{
-            dataProjection:'EPSG:4326',
-            featureProjection:'EPSG:3857'
-        })
-
-        pointLayer.getSource().addFeatures(features)
-    })
-
-    // 点击事件
-    const popup = document.getElementById('popup');
-
-    map.on('singleclick', function (event) {
-        const feature = map.forEachFeatureAtPixel(
-            event.pixel,
-            function (feature) {
-                return feature;
+        const pointLayer = new ol.layer.Vector({
+            source: clusterSource,
+            style(feature) {
+                const size = feature.get("features").length;
+                if (!clusterStyleCache[size]) {
+                    const radius = size === 1 ? 7 : Math.min(10 + Math.log(size) * 3, 22);
+                    clusterStyleCache[size] = new ol.style.Style({
+                        image: new ol.style.Circle({
+                            radius,
+                            fill: new ol.style.Fill({
+                                color: size === 1 ? "#dc2626" : "#b91c1c"
+                            }),
+                            stroke: new ol.style.Stroke({
+                                color: "#ffffff",
+                                width: 2
+                            })
+                        }),
+                        text: size > 1 ? new ol.style.Text({
+                            text: String(size),
+                            fill: new ol.style.Fill({
+                                color: "#ffffff"
+                            }),
+                            font: "600 12px sans-serif"
+                        }) : undefined
+                    });
+                }
+                return clusterStyleCache[size];
             }
-        );
+        });
 
-        if (!feature) {
-            popup.style.display = 'none';
-            return;
+        const selectionSource = new ol.source.Vector();
+        const selectionLayer = new ol.layer.Vector({
+            source: selectionSource,
+            style(feature) {
+                if (feature.getGeometry().getType() === "Point") {
+                    return [
+                        new ol.style.Style({
+                            image: new ol.style.Circle({
+                                radius: 15,
+                                fill: new ol.style.Fill({
+                                    color: "rgba(250, 204, 21, 0.28)"
+                                }),
+                                stroke: new ol.style.Stroke({
+                                    color: "#facc15",
+                                    width: 4
+                                })
+                            })
+                        }),
+                        new ol.style.Style({
+                            image: new ol.style.Circle({
+                                radius: 7,
+                                fill: new ol.style.Fill({
+                                    color: "#dc2626"
+                                }),
+                                stroke: new ol.style.Stroke({
+                                    color: "#ffffff",
+                                    width: 2
+                                })
+                            })
+                        })
+                    ];
+                }
+
+                return new ol.style.Style({
+                    stroke: new ol.style.Stroke({
+                        color: "#facc15",
+                        width: 5
+                    }),
+                    fill: new ol.style.Fill({
+                        color: "rgba(250, 204, 21, 0.25)"
+                    })
+                });
+            }
+        });
+
+        const popupOverlay = new ol.Overlay({
+            element: popupElement,
+            autoPan: {
+                animation: {
+                    duration: 250
+                }
+            },
+            offset: [-20, -12],
+            positioning: "bottom-left"
+        });
+
+        const map = new ol.Map({
+            target: "map",
+            layers: [
+                gaodeImageLayer,
+                gaodeImageLabelLayer,
+                polygonLayer,
+                pointLayer,
+                selectionLayer
+            ],
+            overlays: [popupOverlay],
+            view: new ol.View({
+                center: ol.proj.fromLonLat([120.15, 30.28]),
+                zoom: 10,
+                minZoom: 5,
+                maxZoom: 19
+            })
+        });
+
+        function updateStatus(message, isError = false) {
+            statusElement.textContent = message;
+            statusElement.classList.toggle("error", isError);
+            statusElement.classList.remove("hidden");
         }
 
-        const properties = feature.getProperties();
-
-        delete properties.geometry;
-
-        let html = '<strong>属性信息</strong>';
-        html += '<table>';
-
-        for (const key in properties) {
-            html += `
-                <tr>
-                    <td>${key}</td>
-                    <td>${properties[key]}</td>
-                </tr>
-            `;
+        function hideStatus() {
+            statusElement.classList.add("hidden");
         }
 
-        html += '</table>';
+        function closePopup() {
+            popupOverlay.setPosition(undefined);
+            popupElement.hidden = true;
+            selectionSource.clear();
+        }
 
-        popup.innerHTML = html;
-        popup.style.left = event.pixel[0] + 15 + 'px';
-        popup.style.top = event.pixel[1] + 15 + 'px';
-        popup.style.display = 'block';
-    });
-   
-</script>
+        function highlightFeature(feature) {
+            selectionSource.clear();
+            selectionSource.addFeature(feature.clone());
+        }
+
+        function startPopupDrag(event) {
+            const position = popupOverlay.getPosition();
+            if (!position || event.button !== 0) {
+                return;
+            }
+
+            popupDragState = {
+                pointerId: event.pointerId,
+                startClientX: event.clientX,
+                startClientY: event.clientY,
+                startPixel: map.getPixelFromCoordinate(position)
+            };
+            popupTitle.setPointerCapture(event.pointerId);
+            popupElement.classList.add("dragging");
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        function movePopup(event) {
+            if (!popupDragState || event.pointerId !== popupDragState.pointerId) {
+                return;
+            }
+
+            const pixel = [
+                popupDragState.startPixel[0] + event.clientX - popupDragState.startClientX,
+                popupDragState.startPixel[1] + event.clientY - popupDragState.startClientY
+            ];
+            popupOverlay.setPosition(map.getCoordinateFromPixel(pixel));
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        function stopPopupDrag(event) {
+            if (!popupDragState || event.pointerId !== popupDragState.pointerId) {
+                return;
+            }
+
+            if (popupTitle.hasPointerCapture(event.pointerId)) {
+                popupTitle.releasePointerCapture(event.pointerId);
+            }
+            popupDragState = null;
+            popupElement.classList.remove("dragging");
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        function convertGeoJSON(data) {
+            return gcoord.transform(data, gcoord.WGS84, gcoord.GCJ02);
+        }
+
+        async function loadGeoJSON(url, targetSource) {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`${url} 加载失败（HTTP ${response.status}）`);
+            }
+
+            const data = await response.json();
+            const converted = convertGeoJSON(data);
+            const features = new ol.format.GeoJSON().readFeatures(converted, {
+                dataProjection: "EPSG:4326",
+                featureProjection: "EPSG:3857"
+            });
+            targetSource.addFeatures(features);
+            return features.length;
+        }
+
+        function fitToData() {
+            const extent = ol.extent.createEmpty();
+            ol.extent.extend(extent, polygonSource.getExtent());
+            ol.extent.extend(extent, pointSource.getExtent());
+
+            if (!ol.extent.isEmpty(extent)) {
+                map.getView().fit(extent, {
+                    padding: [70, 70, 70, 320],
+                    duration: 700,
+                    maxZoom: 12
+                });
+            }
+        }
+
+        function formatLabel(key) {
+            const labels = {
+                OBJECTID: "编号",
+                Name: "开发区名称",
+                block: "区块",
+                Range: "范围",
+                remark: "备注",
+                Shape_Length: "周长",
+                Shape_Area: "面积"
+            };
+            return labels[key] || key;
+        }
+
+        function formatValue(key, value) {
+            if (value === null || value === undefined || value === "") {
+                return "-";
+            }
+            if (key === "Shape_Area" && Number.isFinite(Number(value))) {
+                return `${(Number(value) / 1000000).toFixed(2)} 平方千米`;
+            }
+            if (key === "Shape_Length" && Number.isFinite(Number(value))) {
+                return `${(Number(value) / 1000).toFixed(2)} 千米`;
+            }
+            return String(value);
+        }
+
+        function showProperties(feature, coordinate) {
+            const properties = feature.getProperties();
+            const table = document.createElement("table");
+            const hiddenFields = new Set(["geometry"]);
+            const isPoint = feature.getGeometry().getType() === "Point";
+
+            if (!isPoint) {
+                hiddenFields.add("OBJECTID");
+                hiddenFields.add("Shape_Length");
+            }
+
+            Object.entries(properties).forEach(([key, value]) => {
+                const isPointCoordinate = isPoint
+                    && key !== "OBJECTID"
+                    && typeof value === "number";
+
+                if (hiddenFields.has(key) || isPointCoordinate) {
+                    return;
+                }
+
+                const row = document.createElement("tr");
+                const heading = document.createElement("th");
+                const cell = document.createElement("td");
+                heading.textContent = formatLabel(key);
+                cell.textContent = formatValue(key, value);
+                row.append(heading, cell);
+                table.appendChild(row);
+            });
+
+            popupTitle.textContent = isPoint
+                ? "企业信息"
+                : "开发区信息";
+            popupContent.replaceChildren(table);
+            popupElement.hidden = false;
+            popupOverlay.setPosition(coordinate);
+            highlightFeature(feature);
+        }
+
+        function getCompanyName(feature) {
+            const stringValues = Object.entries(feature.getProperties())
+                .filter(([key, value]) => key !== "geometry" && typeof value === "string")
+                .map(([, value]) => value.trim())
+                .filter(Boolean);
+            return stringValues.sort((a, b) => b.length - a.length)[0] || "未命名企业";
+        }
+
+        function renderSearchResults(query) {
+            const resultElement = document.getElementById("search-results");
+            resultElement.replaceChildren();
+            const keyword = query.trim().toLocaleLowerCase();
+
+            if (!keyword) {
+                return;
+            }
+
+            const matches = pointSource.getFeatures()
+                .map((feature) => ({
+                    feature,
+                    name: getCompanyName(feature)
+                }))
+                .filter((item) => item.name.toLocaleLowerCase().includes(keyword))
+                .slice(0, 20);
+
+            if (!matches.length) {
+                const empty = document.createElement("li");
+                empty.className = "search-empty";
+                empty.textContent = "未找到匹配企业";
+                resultElement.appendChild(empty);
+                return;
+            }
+
+            matches.forEach(({ feature, name }) => {
+                const item = document.createElement("li");
+                const button = document.createElement("button");
+                button.className = "search-result-button";
+                button.type = "button";
+                button.textContent = name;
+                button.addEventListener("click", () => {
+                    const coordinate = feature.getGeometry().getCoordinates();
+                    map.getView().animate({
+                        center: coordinate,
+                        zoom: 16,
+                        duration: 500
+                    });
+                    showProperties(feature, coordinate);
+                });
+                item.appendChild(button);
+                resultElement.appendChild(item);
+            });
+        }
+
+        function renderDevelopmentZoneResults(query) {
+            const resultElement = document.getElementById("development-zone-results");
+            resultElement.replaceChildren();
+            const keyword = query.trim().toLocaleLowerCase();
+
+            if (!keyword) {
+                return;
+            }
+
+            const matches = polygonSource.getFeatures()
+                .map((feature) => {
+                    const name = String(feature.get("Name") || "未命名开发区");
+                    const block = String(feature.get("block") || "未命名区块");
+                    return {
+                        feature,
+                        name,
+                        block,
+                        searchableText: `${name} ${block}`.toLocaleLowerCase()
+                    };
+                })
+                .filter((item) => item.searchableText.includes(keyword))
+                .slice(0, 20);
+
+            if (!matches.length) {
+                const empty = document.createElement("li");
+                empty.className = "search-empty";
+                empty.textContent = "未找到匹配开发区";
+                resultElement.appendChild(empty);
+                return;
+            }
+
+            matches.forEach(({ feature, name, block }) => {
+                const item = document.createElement("li");
+                const button = document.createElement("button");
+                button.className = "search-result-button";
+                button.type = "button";
+                button.textContent = `${name} · ${block}`;
+                button.title = `开发区：${name}\n区块：${block}`;
+                button.addEventListener("click", () => {
+                    const geometry = feature.getGeometry();
+                    const coordinate = geometry.getInteriorPoint
+                        ? geometry.getInteriorPoint().getCoordinates()
+                        : ol.extent.getCenter(geometry.getExtent());
+
+                    polygonLayer.setVisible(true);
+                    document.getElementById("polygon-toggle").checked = true;
+                    map.getView().fit(geometry.getExtent(), {
+                        padding: [80, 80, 80, 320],
+                        duration: 500,
+                        maxZoom: 15
+                    });
+                    showProperties(feature, coordinate);
+                });
+                item.appendChild(button);
+                resultElement.appendChild(item);
+            });
+        }
+
+        map.on("singleclick", (event) => {
+            closePopup();
+
+            const feature = map.forEachFeatureAtPixel(
+                event.pixel,
+                (candidate) => candidate,
+                {
+                    hitTolerance: 5,
+                    layerFilter: (layer) => layer !== selectionLayer
+                }
+            );
+
+            if (!feature) {
+                return;
+            }
+
+            const clusteredFeatures = feature.get("features");
+            if (clusteredFeatures) {
+                if (clusteredFeatures.length > 1) {
+                    const extent = ol.extent.createEmpty();
+                    clusteredFeatures.forEach((item) => {
+                        ol.extent.extend(extent, item.getGeometry().getExtent());
+                    });
+                    map.getView().fit(extent, {
+                        padding: [80, 80, 80, 80],
+                        duration: 450,
+                        maxZoom: 16
+                    });
+                    return;
+                }
+                showProperties(clusteredFeatures[0], event.coordinate);
+                return;
+            }
+
+            showProperties(feature, event.coordinate);
+        });
+
+        map.on("pointermove", (event) => {
+            if (event.dragging) {
+                return;
+            }
+            map.getTargetElement().style.cursor = map.hasFeatureAtPixel(
+                event.pixel,
+                {
+                    hitTolerance: 5,
+                    layerFilter: (layer) => layer !== selectionLayer
+                }
+            ) ? "pointer" : "";
+        });
+
+        document.getElementById("popup-close").addEventListener("click", closePopup);
+        popupTitle.addEventListener("pointerdown", startPopupDrag);
+        popupTitle.addEventListener("pointermove", movePopup);
+        popupTitle.addEventListener("pointerup", stopPopupDrag);
+        popupTitle.addEventListener("pointercancel", stopPopupDrag);
+        document.getElementById("polygon-toggle").addEventListener("change", (event) => {
+            polygonLayer.setVisible(event.target.checked);
+            closePopup();
+        });
+        document.getElementById("point-toggle").addEventListener("change", (event) => {
+            pointLayer.setVisible(event.target.checked);
+            closePopup();
+        });
+        document.getElementById("reset-view").addEventListener("click", () => {
+            closePopup();
+            fitToData();
+        });
+        document.getElementById("company-search").addEventListener("input", (event) => {
+            renderSearchResults(event.target.value);
+        });
+        document.getElementById("development-zone-search").addEventListener("input", (event) => {
+            renderDevelopmentZoneResults(event.target.value);
+        });
+
+        Promise.all([
+            loadGeoJSON("./data/Range.geojson", polygonSource),
+            loadGeoJSON("./data/company.geojson", pointSource)
+        ]).then(([polygonCount, pointCount]) => {
+            document.getElementById("polygon-count").textContent = polygonCount;
+            document.getElementById("point-count").textContent = pointCount;
+            fitToData();
+            updateStatus(`已加载 ${polygonCount} 个开发区范围、${pointCount} 个企业点位`);
+            window.setTimeout(hideStatus, 2600);
+        }).catch((error) => {
+            console.error(error);
+            updateStatus(`数据加载失败：${error.message}`, true);
+        });
+    </script>
 </body>
 </html>
